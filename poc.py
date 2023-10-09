@@ -203,8 +203,9 @@ def main():
     print("Preparing to execute exploit.")
     input("Start listener and press Enter to continue...")
     
-    overlay_req()
-    sync_req()
+    if (overlay_text != ""):
+        overlay_req()
+        sync_req()
     
     command_reset_req()
     sync_req()
