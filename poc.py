@@ -179,7 +179,7 @@ def command_reset_req():
     global stage
     RESET_DATA = {
         'action': "dbus",
-        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:True",
+        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:yes",
     }
     
     logging(f"Stage {stage}: Resetting root.Time.DST.Enabled\t\t")
