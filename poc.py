@@ -48,8 +48,6 @@ args = parser.parse_args()
 
 # Set some default values
 target_ip = args.target
-#target_port = 80
-#target_file = "index.shtml"
 target_proto = "http"
 listen_ip = ""
 listen_port = 1337
