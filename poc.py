@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 """
+!!! FOR EDUCATIONAL PURPOSES ONLY !!!
+
 POC for exploit of AXIS Network Cameras
 
 https://www.axis.com/files/sales/ACV-128401_Affected_Product_List.pdf
