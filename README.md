@@ -5,5 +5,7 @@
 #### CVE-2018-10662      Exposed Insecure Interface
 ---
 
-- Modify overlay text on cam image (some)
-- Reverse connection to listener
+- Test device for vulnerability
+- Enable and modify overlay text on cam image
+- Arbitrary file read and output to image text overlay
+- Remote code execution
