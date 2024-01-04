@@ -10,7 +10,6 @@ CHISEL_OUT_BIN=ch
 SOCAT_OUT_BIN=so
 XXD_OUT_BIN=x
 
-
 mkdir -p ${OUT_PATH}
 curl http://${1}:${2}/${FILEPATH}/${CHISEL_BIN} -o ${OUT_PATH}/${CHISEL_OUT_BIN}
 curl http://${1}:${2}/${FILEPATH}/${SOCAT_BIN} -o ${OUT_PATH}/${SOCAT_OUT_BIN}
