@@ -10,3 +10,4 @@
 - Enable and modify overlay text on cam image
 - Arbitrary file read and output to image text overlay
 - Remote code execution
+- Optional takeover script with http content server
