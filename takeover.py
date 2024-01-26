@@ -2,8 +2,6 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from io import BytesIO
 import binascii
-import os
-import time
 
 srv_run = True
 
