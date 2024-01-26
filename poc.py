@@ -140,39 +140,42 @@ def gen_chars(count: int) -> str:
     letters = ''.join(random.choice(string.ascii_lowercase) for i in range(count))
     return letters
 
+
 # HTTP status checking
 def http_check(req: requests, test: bool = False) -> int:
-    match req.status_code:
-        case 200:
-            if not test:
-                return 0
-
-        case 204:
-            logging(f"Empty response received. Success?\n")
+    if req.status_code == 200:
+        if not test:
             return 0
-        
-        case 303:
-            if (test):
-                if (req.text.find('Continue to') >= 0):
-                    logging(f"Test connection SUCCESS\n")
-                    return 0
-                logging("Test connection FAIL")
             
-            logging("Something went wrong")
-            logging(req.status_code)
-            logging(req.text)
+    elif req.status_code == 204:
+        logging(f"Empty response received. Success?\n")
+        return 0
         
-        case 403:
-            logging(f"Unable to connect.\nAUTH ERROR\n")
-            logging(f"URL requested: {req.request}")
+    elif req.status_code == 303:
+        if test:
+            if req.text.find('Continue to') >= 0:
+                logging(f"Test connection SUCCESS\n")
+                return 0
+            logging("Test connection FAIL")
+        logging("Something went wrong")
+        logging(req.status_code)
+        logging(req.text)
         
-        case 404:
-            logging(f"Specified target {req.request} not found.\n")
+    elif req.status_code == 403:
+        logging(f"Unable to connect.\nAUTH ERROR\n")
+        logging(f"URL requested: {req.request}")
         
-        case _:
-            logging(f"Unexpected response from server.")
-            logging(f"Received status code: {req.status_code}")
-            logging(f"Response:\n{req.text}")
+    elif req.status_code == 403:
+        logging(f"Unable to connect.\nAUTH ERROR\n")
+        logging(f"URL requested: {req.request}")
+        
+    elif req.status_code == 404:
+        logging(f"Specified target {req.request} not found.\n")
+        
+    else:
+        logging(f"Unexpected response from server.")
+        logging(f"Received status code: {req.status_code}")
+        logging(f"Response:\n{req.text}")
         
     logging("Quitting")
     return 1
