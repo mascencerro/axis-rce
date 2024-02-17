@@ -2,6 +2,7 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from io import BytesIO
 import binascii
+import sys
 
 srv_run = True
 
@@ -58,7 +59,6 @@ def run_server(listen_port: int):
 
 
 if __name__ == "__main__":
-    import sys
 
     if (len(sys.argv) < 2):
         print("Not enough arguments. Exiting.")
