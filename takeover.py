@@ -39,7 +39,10 @@ def run_server(listen_port: int):
             response = BytesIO()
             self.wfile.write(response.getvalue())
             if (body[0] == 'ip'):
-                print(f"Device reported IP: {binascii.a2b_hex(body[1]).decode('utf-8')}\n")
+                from termcolor import cprint
+                print()
+                cprint(f"Device reported CIDR IP: ", "green", attrs=["bold"], end="")
+                cprint(f"{binascii.a2b_hex(body[1]).decode('utf-8')}\n", "white", attrs=["bold"])
 
         def do_QUIT(self):
             self.send_response(200)
