@@ -48,6 +48,7 @@ parser.add_argument("-w", "--webserve", action="store_true", help="Serve content
 parser.add_argument("-f",   "--target-path", type=str, help="Target file path", default="index.shtml")
 parser.add_argument("-p",   "--proxy", type=str, help="Proxy to send requests in URL form 'http://IPADDRESS:PORT' (optional)")
 parser.add_argument("-s",   "--ssl", action="store_true", help="HTTPS")
+parser.add_argument("-t",   "--timeout", type=int, help="Timeout for request in seconds (DEFAULT = 3)", default=3)
 parser.add_argument("--icmp", action="store_true", help="ICMP ping back test")
 
 args = parser.parse_args()
@@ -59,6 +60,7 @@ listen_ip = ""
 listen_port = 1337
 overlay_text = None
 req_proxy = ""
+req_timeout = args.timeout
 
 """
     Process arguments
@@ -192,7 +194,12 @@ def test_connect():
     }
     
     logging(f"+ Testing connection to device...\t\t\t\t")
-    if http_check(requests.post(f"{target_url}", data=TEST_DATA, proxies=req_proxy, allow_redirects=False, verify=False), True):
+    try:
+        if http_check(requests.post(f"{target_url}", timeout=req_timeout, data=TEST_DATA, proxies=req_proxy, allow_redirects=False, verify=False), True):
+            exit(1)
+    except requests.exceptions.RequestException as err:
+        logging(f"Error: {err}\n")
+        logging("Quitting\n")
         exit(1)
 
 
@@ -201,8 +208,14 @@ def test_connect():
 """
 # Send request
 def send_req(req_data: dict):
-    if http_check(requests.post(f"{target_url}", data=req_data, proxies=req_proxy, allow_redirects=False, verify=False)):
+    try:
+        if http_check(requests.post(f"{target_url}", timeout=req_timeout, data=req_data, proxies=req_proxy, allow_redirects=False, verify=False)):
+            exit(1)
+    except requests.exceptions.RequestException as err:
+        logging(f"Error: {err}\n")
+        logging("Quitting\n")
         exit(1)
+
 
 
 # Sync modifications
