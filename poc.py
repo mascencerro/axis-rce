@@ -167,10 +167,6 @@ def http_check(req: requests, test: bool = False) -> int:
         logging(f"Unable to connect.\nAUTH ERROR\n")
         logging(f"URL requested: {req.request}")
         
-    elif req.status_code == 403:
-        logging(f"Unable to connect.\nAUTH ERROR\n")
-        logging(f"URL requested: {req.request}")
-        
     elif req.status_code == 404:
         logging(f"Specified target {req.request} not found.\n")
         
