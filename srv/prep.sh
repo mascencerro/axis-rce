@@ -4,10 +4,10 @@
 
 FILEPATH=srv
 OUT_PATH=/usr/local/bin
-CHISEL_BIN=chisel-mips32
-SOCAT_BIN=socat-mips32
-XXD_BIN=xxd-mips32
-LIGOLO_BIN=ligolo-mips32
+CHISEL_BIN=mipsel-bin/chisel-mipsel
+SOCAT_BIN=mipsel-bin/socat-mipsel
+XXD_BIN=mipsel-bin/xxd-mipsel
+LIGOLO_BIN=mipsel-bin/ligolo-mipsel
 
 CHISEL_OUT_BIN=chisel
 SOCAT_OUT_BIN=socat
