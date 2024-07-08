@@ -54,7 +54,6 @@ parser.add_argument("--icmp", action="store_true", help="ICMP ping back test")
 args = parser.parse_args()
 
 # Set some default values
-target_ip = args.target
 target_proto = "http"
 listen_ip = ""
 listen_port = 1337
