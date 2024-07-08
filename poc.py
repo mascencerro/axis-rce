@@ -28,7 +28,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-a",   "--auto", action="store_true", help="Auto mode (do not prompt for listener)")
 parser.add_argument("-q",   "--quiet", action="store_true", help="Quiet mode (no prompt, no output)")
 parser.add_argument("-x",   "--test", action="store_true", help="Test for vulnerability only")
-parser.add_argument("-T",   "--target", type=str, required=True, help="Target device IP")
+parser.add_argument("-T",   "--target", type=str, required=True, help="Target device IP (IP or IP:PORT)")
 parser.add_argument("-TP",  "--target-port", type=int, help="Target device port", default="80")
 parser.add_argument("-L",   "--listen", type=str, help="Listener IP (if not specified, response from http://checkip.amazonaws.com)")
 parser.add_argument("-LP",  "--listen-port", type=int, help="Listener port", default=1337)
@@ -65,7 +65,13 @@ req_timeout = args.timeout
 """
     Process arguments
 """
-if (args.target_port != None):
+if (args.target.find(':') > -1):
+    target_ip = args.target.split(':')[0]
+    target_port = args.target.split(':')[1]
+else:
+    target_ip = args.target
+
+if (args.target_port != 80):
     target_port = args.target_port
 
 if (args.proxy != None):
