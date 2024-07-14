@@ -69,8 +69,6 @@ if (args.target.find(':') > -1):
     target_port = args.target.split(':')[1]
 else:
     target_ip = args.target
-
-if (args.target_port != 80):
     target_port = args.target_port
 
 if (args.proxy != None):
