@@ -22,7 +22,7 @@ SRV_ADDR = "${1}"
 WEBSRV = "${2}"
 TARGET_IP = "${3}"
 TARGET_PORT = "${4}"
-EXTRA_ARG = "${5}
+EXTRA_ARG = "${5}"
 
 # # Add DNS to resolv.conf
 # if [ -f /etc/resolv.conf ] && [ -z "$(grep -i '1.1.1.1' /etc/resolv.conf)" ] ; then
