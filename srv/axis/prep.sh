@@ -56,9 +56,9 @@ EXTRA_ARG = "${5}"
 # fi
 
 if [[ "${WEBSRV}" -eq 1 ]]; then
-    # Report back internal IP address of device in hex to internal web server
-    GET_INTERNAL_IP=$(ip a s eth0 | grep -i 'global' | cut -d ' ' -f6 | ${XXD_OUT_BIN} -p)
-    curl -d 'ip':$(ip a s eth0 | grep -i 'global' | cut -d ' ' -f6 | ${XXD_OUT_BIN} -p) -H 'Content-Type: application/json' -X POST http://${SRV_ADDR}/${GET_INTERNAL_IP}
+    # # Report back internal IP address of device in hex to internal web server
+    # GET_INTERNAL_IP=$(ip a s eth0 | grep -i 'global' | cut -d ' ' -f6 | ${XXD_OUT_BIN} -p)
+    # curl -d 'ip':$(ip a s eth0 | grep -i 'global' | cut -d ' ' -f6 | ${XXD_OUT_BIN} -p) -H 'Content-Type: application/json' -X POST http://${SRV_ADDR}/${GET_INTERNAL_IP}
 
     # Signal internal web server shutdown if running
     curl -X QUIT http://${SRV_ADDR}
